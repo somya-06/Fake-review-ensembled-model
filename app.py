@@ -38,44 +38,59 @@ with col2:
     st.button("Clear Text", on_click=clear_text)
 
 # --- LOGIC BLOCK ---
+# --- LOGIC BLOCK ---
 if analyze_btn:
     if review:
         cleaned = clean_text(review)
         
         # 1. Get raw probabilities
         probs = c.predict_proba([review])[0]
-        
-        # 2. Direct Index Check (0=Fake/CG, 1=Real/OR)
-        # np.argmax picks the index with the highest percentage
         prediction_index = np.argmax(probs)
         
-        # 3. Repetition Check (Hybrid Safety Net)
+        # 2. Repetition Check
         words = cleaned.split()
         unique_ratio = len(set(words)) / len(words) if len(words) > 1 else 1
         
-        # FINAL VERDICT: Fake if Model says index 0 OR unique_ratio is low
+        # FINAL VERDICT
         is_fake = (prediction_index == 0) or (unique_ratio < 0.45 and len(words) > 10)
 
         st.divider()
         if is_fake:
             st.error("### 🚩 VERDICT: FAKE")
-            st.write(f"**Analysis:** Machine-generated patterns or high repetition detected.")
             st.write(f"**System Confidence:** {probs[0]*100:.1f}%")
         else:
             st.success("### ✅ VERDICT: REAL")
-            st.write(f"**Analysis:** Text structure appears naturally human.")
             st.write(f"**System Confidence:** {probs[1]*100:.1f}%")
 
-        # --- LIME SECTION ---
+        # --- DARK THEME LIME SECTION ---
         st.subheader("Visual Explanation")
-        # Align labels: 0=Fake (CG), 1=Real (OR)
         map_names = ['Fake (CG)', 'Real (OR)'] 
         explainer = LimeTextExplainer(class_names=map_names)
         
-        with st.spinner("Generating feature importance..."):
+        with st.spinner("Generating dark-mode visual..."):
             exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
             lime_html = exp.as_html()
-            custom_css = "<style>.lime { color: white !important; } text { fill: white !important; }</style>"
+            
+            # This CSS forces the LIME internal HTML to be Dark Mode compatible
+            custom_css = """
+            <style>
+                /* Force background to match Streamlit's dark theme */
+                body { background-color: #0e1117 !important; color: white !important; }
+                
+                /* Target LIME specific text elements */
+                .lime { color: white !important; }
+                text { fill: white !important; font-family: sans-serif !important; font-size: 14px !important; }
+                
+                /* Make the labels stand out */
+                .lime.label { color: #ffaa00 !important; font-weight: bold !important; }
+                
+                /* Ensure the horizontal bars are visible */
+                rect { stroke: #444 !important; }
+            </style>
+            """
+            
+            # Combine the CSS with the LIME HTML inside the component
             components.html(custom_css + lime_html, height=600, scrolling=True)
     else:
         st.warning("Please enter a review first!")
+       
