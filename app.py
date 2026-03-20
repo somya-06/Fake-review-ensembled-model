@@ -66,7 +66,7 @@ if analyze_btn:
         st.subheader("Visual Explanation")
         
         # Alphabetical alignment: 0=CG (Fake), 1=OR (Real)
-        map_names = ['Fake (CG)', 'Real (OR)'] 
+        map_names = ['Real (OR)', 'Fake (CG)'] 
         explainer = LimeTextExplainer(class_names=map_names)
         
         with st.spinner("Generating feature importance..."):
