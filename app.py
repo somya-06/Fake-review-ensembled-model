@@ -58,7 +58,7 @@ if analyze_btn:
             generic_ratio = generic_count / len(words)
             avg_word_length = sum(len(word) for word in words) / len(words)
 
-            # 3. Final Verdict Decision (The Safety Net)
+            # 3. Final Verdict Decision
             is_fake = (prediction_index == 0) or \
                       (unique_ratio < 0.65) or \
                       (generic_ratio > 0.35) or \
@@ -71,7 +71,6 @@ if analyze_btn:
                 st.error("### 🚩 VERDICT: FAKE")
                 st.info(f"**Reason:** Pattern Mismatch | Uniqueness: {unique_ratio:.2f} | Avg Word Len: {avg_word_length:.1f}")
                 
-                # Show Heuristic Override warning if the AI was fooled
                 if prediction_index == 1:
                     st.warning("⚠️ **Heuristic Override Applied**")
                     st.write("The AI model leaned toward 'Real', but our safety checks flagged it:")
@@ -83,40 +82,21 @@ if analyze_btn:
                 st.info(f"**Reason:** Natural Language | AI Confidence: {probs[1]*100:.1f}%")
 
             # --- VISUAL EXPLANATION (LIME) ---
-            # --- DARK THEME LIME FIX ---
-st.subheader("🔍 Visual Explanation")
-with st.spinner("Generating feature importance..."):
-    explainer = LimeTextExplainer(class_names=['Fake (CG)', 'Real (OR)'])
-    exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
-    lime_html = exp.as_html()
-    
-    # This CSS forces the LIME internal containers to have light text and a readable background
-    improved_css = """
-    <style>
-        /* Force the main background and text color */
-        body, .lime { 
-            background-color: #0e1117 !important; 
-            color: #ffffff !important; 
-            font-family: sans-serif !important;
-        }
-        /* Fix the 'Text with highlighted words' visibility */
-        div { color: #ffffff !important; } 
-        p { color: #ffffff !important; }
-        b { color: #ffffff !important; }
-        
-        /* Ensure the chart labels (axis) are visible */
-        text { fill: #ffffff !important; font-size: 12px !important; }
-        
-        /* Make the highlighted word labels pop */
-        .lime.label { color: #ffaa00 !important; font-weight: bold !important; }
-        
-        /* Fix scrollbar styling for dark mode */
-        ::-webkit-scrollbar { width: 10px; }
-        ::-webkit-scrollbar-track { background: #0e1117; }
-        ::-webkit-scrollbar-thumb { background: #31333f; border-radius: 5px; }
-    </style>
-    """
-    # Combine the CSS and the LIME HTML
-    components.html(improved_css + lime_html, height=500, scrolling=True)
+            st.subheader("🔍 Visual Explanation")
+            with st.spinner("Generating feature importance..."):
+                explainer = LimeTextExplainer(class_names=['Fake (CG)', 'Real (OR)'])
+                exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
+                lime_html = exp.as_html()
+                
+                # DARK THEME VISIBILITY FIX
+                improved_css = """
+                <style>
+                    body, .lime { background-color: #0e1117 !important; color: #ffffff !important; }
+                    div, p, b { color: #ffffff !important; } 
+                    text { fill: #ffffff !important; font-size: 12px !important; }
+                    .lime.label { color: #ffaa00 !important; font-weight: bold !important; }
+                </style>
+                """
+                components.html(improved_css + lime_html, height=500, scrolling=True)
     else:
         st.warning("Please enter a review first!")
