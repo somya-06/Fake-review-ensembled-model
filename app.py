@@ -45,30 +45,30 @@ if analyze_btn:
         # 1. Get raw probabilities
         probs = c.predict_proba([review])[0]
         
-        # 2. Direct Index Check (Most reliable way to avoid 'Opposite' issues)
-        # Assuming index 0 = Fake (CG) and index 1 = Real (OR)
+        # 2. Direct Index Check (0=Fake/CG, 1=Real/OR)
+        # np.argmax picks the index with the highest percentage
         prediction_index = np.argmax(probs)
         
         # 3. Repetition Check (Hybrid Safety Net)
         words = cleaned.split()
-        unique_ratio = len(set(words)) / len(words) if len(words) > 0 else 1
+        unique_ratio = len(set(words)) / len(words) if len(words) > 1 else 1
         
-        # FINAL VERDICT
+        # FINAL VERDICT: Fake if Model says index 0 OR unique_ratio is low
         is_fake = (prediction_index == 0) or (unique_ratio < 0.45 and len(words) > 10)
 
         st.divider()
         if is_fake:
             st.error("### 🚩 VERDICT: FAKE")
-            st.write(f"**Analysis:** Bot-like patterns or high repetition detected.")
-            st.write(f"**Confidence:** {probs[0]*100:.1f}% | **Uniqueness:** {unique_ratio:.2f}")
+            st.write(f"**Analysis:** Machine-generated patterns or high repetition detected.")
+            st.write(f"**System Confidence:** {probs[0]*100:.1f}%")
         else:
             st.success("### ✅ VERDICT: REAL")
-            st.write(f"**Analysis:** Text structure appears natural.")
-            st.write(f"**Confidence:** {probs[1]*100:.1f}%")
+            st.write(f"**Analysis:** Text structure appears naturally human.")
+            st.write(f"**System Confidence:** {probs[1]*100:.1f}%")
 
         # --- LIME SECTION ---
         st.subheader("Visual Explanation")
-        # We align labels to match the index: 0=Fake, 1=Real
+        # Align labels: 0=Fake (CG), 1=Real (OR)
         map_names = ['Fake (CG)', 'Real (OR)'] 
         explainer = LimeTextExplainer(class_names=map_names)
         
