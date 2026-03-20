@@ -56,17 +56,30 @@ if submit:
         # DEBUG: Remove this later, but helps us see if labels are flipped
         st.write(f"DEBUG: Model predicted raw value: {raw_prediction}")
 
-        # --- LIME EXPLAINABILITY SECTION ---
+       # --- LIME EXPLAINABILITY SECTION ---
         st.subheader("Why did the AI choose this?")
         
         with st.spinner("Calculating word importance..."):
-            # Use the actual internal labels
-            explainer = LimeTextExplainer(class_names=['OR', 'CG'])
-            exp = explainer.explain_instance(st.session_state.review_text, c.predict_proba, num_features=10)
+            # We pull the actual class order from the model itself
+            class_names = model.classes_ # This will likely be ['CG', 'OR'] or ['OR', 'CG']
             
-            # CSS for Dark Mode
+            explainer = LimeTextExplainer(class_names=class_names)
+            
+            # Use the original text (not cleaned) for better LIME visualization
+            exp = explainer.explain_instance(
+                st.session_state.review_text, 
+                c.predict_proba, 
+                num_features=10
+            )
+            
+            # CSS for visibility
             lime_html = exp.as_html()
-            custom_css = "<style>* { color: white !important; } text { fill: white !important; } .lime.label { color: #ffaa00 !important; font-weight: bold; }</style>"
+            custom_css = """
+            <style>
+                * { color: white !important; }
+                text { fill: white !important; } 
+                .lime.label { color: #ffaa00 !important; font-weight: bold; }
+            </style>
+            """
             components.html(custom_css + lime_html, height=800, scrolling=True)
-    else:
         st.warning("Please enter text first.")
