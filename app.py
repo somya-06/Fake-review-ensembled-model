@@ -54,13 +54,21 @@ if analyze_btn:
 
         st.divider()
         
-        # Display Verdict
-        if is_fake:
+        # --- VERDICT DISPLAY (The Final Fix) ---
+        st.divider()
+        
+        # Standardize the prediction to uppercase for comparison
+        pred_upper = str(prediction).upper()
+        
+        # A review is fake if the Model says 'CG' OR if our Repetition Rule triggers
+        if pred_upper == "CG" or (unique_ratio < 0.45 and len(words) > 10):
             st.error("### 🚩 VERDICT: FAKE")
-            st.write(f"**Analysis:** Bot-like patterns or high repetition detected (Uniqueness: {unique_ratio:.2f}).")
+            st.write(f"**Analysis:** The system detected bot-like patterns or machine-generated structures.")
+            st.write(f"**Uniqueness Score:** {unique_ratio:.2f} (Lower = more repetitive)")
         else:
             st.success("### ✅ VERDICT: REAL")
-            st.write(f"**Analysis:** The text structure appears naturally human. Confidence: {max(probs)*100:.1f}%")
+            st.write(f"**Analysis:** The review appears to be written by a human with natural language variety.")
+            st.write(f"**Confidence:** {max(probs)*100:.1f}%")
 
         # --- LIME SECTION ---
         st.subheader("Visual Explanation")
