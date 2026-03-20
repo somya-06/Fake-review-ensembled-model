@@ -37,13 +37,47 @@ with col1:
 with col2:
     st.button("Clear Text", on_click=clear_text)
 
-# --- LOGIC BLOCK ---
 if analyze_btn:
     if review:
         cleaned = clean_text(review)
-        prediction = model.predict(vectorizer.transform([cleaned]))[0]
+        
+        # 1. Get raw probabilities
         probs = c.predict_proba([review])[0]
-        class_map = dict(zip(model.classes_, probs))
+        
+        # 2. Map them to labels
+        # Assuming index 0 = Fake (CG) and index 1 = Real (OR)
+        # We find which index has the highest probability
+        import numpy as np
+        prediction_index = np.argmax(probs)
+        
+        # 3. Repetition Check (Our safety net)
+        words = cleaned.split()
+        unique_ratio = len(set(words)) / len(words) if len(words) > 0 else 1
+        
+        # --- THE FINAL VERDICT LOGIC ---
+        # If max probability is at index 0 OR unique_ratio is low -> FAKE
+        is_fake = (prediction_index == 0) or (unique_ratio < 0.45 and len(words) > 10)
+
+        st.divider()
+        if is_fake:
+            st.error("### 🚩 VERDICT: FAKE")
+            st.write(f"**Analysis:** The system detected machine-generated patterns. (Confidence: {probs[0]*100:.1f}%)")
+        else:
+            st.success("### ✅ VERDICT: REAL")
+            st.write(f"**Analysis:** This review follows natural human language patterns. (Confidence: {probs[1]*100:.1f}%)")
+
+        # --- LIME SECTION ---
+        st.subheader("Visual Explanation")
+        map_names = ['Fake (CG)', 'Real (OR)'] 
+        explainer = LimeTextExplainer(class_names=map_names)
+        
+        with st.spinner("Aligning chart..."):
+            exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
+            lime_html = exp.as_html()
+            custom_css = "<style>.lime { color: white !important; } text { fill: white !important; }</style>"
+            components.html(custom_css + lime_html, height=600, scrolling=True)
+    else:
+        st.warning("Please enter a review first!")))
 
         # HYBRID LOGIC: Check for repetition (Lexical Diversity)
         words = cleaned.split()
