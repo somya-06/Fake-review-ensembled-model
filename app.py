@@ -83,3 +83,33 @@ if analyze_btn and review:
 
 elif analyze_btn and not review:
     st.warning("Please enter a review first!")
+# --- ENHANCED PREDICTION LOGIC ---
+        cleaned = clean_text(review)
+        prediction = model.predict(vectorizer.transform([cleaned]))[0]
+        probs = c.predict_proba([review])[0]
+        class_map = dict(zip(model.classes_, probs))
+
+        # 1. Custom Rule: Check for excessive repetition (Bot behavior)
+        words = cleaned.split()
+        unique_ratio = len(set(words)) / len(words) if len(words) > 0 else 1
+        
+        # 2. Custom Rule: Marketing "Spam" words
+        spam_keywords = ['amazing', 'product', 'buy now', 'best quality', 'results']
+        spam_count = sum(1 for word in spam_keywords if word in cleaned)
+
+        # FINAL VERDICT (Hybrid Logic)
+        # If model says CG OR if it's very repetitive (ratio < 0.5) OR high spam count
+        is_fake = (prediction == "CG") or (unique_ratio < 0.5 and len(words) > 10) or (spam_count > 3)
+
+        st.divider()
+        if is_fake:
+            # Calculate a "Weighted" confidence for the UI
+            fake_conf = class_map.get('CG', 0.5) * 100
+            if unique_ratio < 0.5: fake_conf = max(fake_conf, 85.0) # Boost if repetitive
+            
+            st.error(f"### 🚩 VERDICT: FAKE")
+            st.write(f"The system detected bot-like patterns (Repetition: {unique_ratio:.2f}). Confidence: {fake_conf:.1f}%")
+        else:
+            real_conf = class_map.get('OR', 0.5) * 100
+            st.success(f"### ✅ VERDICT: REAL")
+            st.write(f"The review appears natural. AI Confidence: {real_conf:.1f}%")
