@@ -57,17 +57,38 @@ if analyze_btn:
 
         # 3. Final Verdict Decision
         # Thresholds: uniqueness < 55% OR more than 40% generic words
-        is_fake = (prediction_index == 0) or (unique_ratio < 0.55) or (generic_ratio > 0.4)
+     # --- ULTRA-STRICT HYBRID LOGIC ---
+        words = cleaned.split()
+        unique_ratio = len(set(words)) / len(words) if len(words) > 0 else 1
+        
+        # 1. Generic Word Check (Filler language)
+        generic_words = ['product', 'amazing', 'good', 'best', 'quality', 'item', 'buy', 'great', 'excellent', 'recommend']
+        generic_count = sum(1 for word in words if word.lower() in generic_words)
+        generic_ratio = generic_count / len(words) if len(words) > 0 else 0
+
+        # 2. "Fancy Word" Check (Average word length)
+        # Bots often have an avg length > 6.5 because they use words like 'unparalleled' or 'architectural'
+        avg_word_length = sum(len(word) for word in words) / len(words) if len(words) > 0 else 0
+
+        # --- THE FINAL VERDICT DECISION ---
+        # We flag as FAKE if:
+        # - Model says index 0
+        # - OR Uniqueness is low (< 65% - raised from 55%)
+        # - OR Generic Density is high (> 35% - lowered from 40%)
+        # - OR Avg word length is unusually high (> 6.8) suggesting a 'Thesaurus Bot'
+        
+        is_fake = (prediction_index == 0) or \
+                  (unique_ratio < 0.65) or \
+                  (generic_ratio > 0.35) or \
+                  (avg_word_length > 6.8)
 
         st.divider()
         if is_fake:
             st.error("### 🚩 VERDICT: FAKE")
-            st.write(f"**Analysis:** Machine-generated patterns or high repetition detected.")
-            st.info(f"**Metrics:** Uniqueness: {unique_ratio:.2f} | Generic Word Density: {generic_ratio:.2f}")
+            st.info(f"**Reason:** Pattern Mismatch | Uniqueness: {unique_ratio:.2f} | Avg Word Len: {avg_word_length:.1f}")
         else:
             st.success("### ✅ VERDICT: REAL")
-            st.write(f"**Analysis:** Natural linguistic variety and specific details detected.")
-            st.info(f"**System Confidence:** {probs[1]*100:.1f}%")
+            st.info(f"**Reason:** Natural Language | Confidence: {probs[1]*100:.1f}%")
 
         # --- DARK THEME LIME SECTION ---
         st.subheader("Visual Explanation")
