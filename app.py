@@ -1,5 +1,5 @@
 import streamlit as st
-import joblib  # Better for Random Forest
+import joblib
 from src.preprocess import clean_text
 from lime.lime_text import LimeTextExplainer
 import streamlit.components.v1 as components
@@ -7,28 +7,27 @@ from sklearn.pipeline import make_pipeline
 
 st.set_page_config(page_title="AI Review Validator", layout="wide")
 
-# 1. Load Model with Joblib
+# 1. Load Model
 @st.cache_resource
 def load_model():
-    # If you used pickle to save, change this back to pickle.load
     return joblib.load("model/fake_review_model.pkl")
 
 try:
     model, vectorizer = load_model()
     c = make_pipeline(vectorizer, model)
 except Exception as e:
-    st.error(f"Upload your model to GitHub: {e}")
+    st.error(f"Model Load Error: {e}")
 
 st.title("🛡️ AI Review Integrity System")
 
-# 2. Session State for the Clear Button
+# 2. Session State for input
 if 'input_text' not in st.session_state:
     st.session_state['input_text'] = ""
 
 def clear_text():
     st.session_state['input_text'] = ""
 
-# The text area is linked to session_state
+# Input UI
 review = st.text_area("Paste review here:", value=st.session_state['input_text'], height=150, key="review_area")
 
 col1, col2 = st.columns([1, 5])
@@ -37,79 +36,36 @@ with col1:
 with col2:
     st.button("Clear Text", on_click=clear_text)
 
-if analyze_btn and review:
-    # --- PROCESSSING ---
-    cleaned = clean_text(review)
-    prediction = model.predict(vectorizer.transform([cleaned]))[0]
-    probs = c.predict_proba([review])[0]
-    
-    # Map probabilities to classes
-    class_map = dict(zip(model.classes_, probs))
-    
-    # --- DISPLAY RESULT ---
-  # --- DISPLAY RESULT ---
-    st.divider()
-    
-    # Safely find the keys for mapping
-    fake_key = next((k for k in class_map if str(k).upper() == 'CG'), None)
-    real_key = next((k for k in class_map if str(k).upper() == 'OR'), None)
-
-    if prediction.upper() == "CG" and fake_key:
-        st.error("### 🚩 VERDICT: FAKE")
-        st.write(f"The AI is **{class_map[fake_key]*100:.1f}%** sure this is machine-generated.")
-    elif real_key:
-        st.success("### ✅ VERDICT: REAL")
-        st.write(f"The AI is **{class_map[real_key]*100:.1f}%** sure this is a genuine human review.")
-    else:
-        # Fallback if labels are 0/1 or unexpected
-        st.info(f"### Result: {prediction}")
-        # FIXED: Removed the extra parenthesis here
-        st.write(f"Confidence: {max(probs)*100:.1f}%")
-
-    # --- LIME SECTION ---
-    st.subheader("Visual Explanation")
-    explainer = LimeTextExplainer(class_names=model.classes_)
-    exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
-    
-    # Dark Mode CSS Fix
-    custom_css = """
-    <style>
-        * { color: white !important; }
-        text { fill: white !important; }
-        .lime.label { color: #ffaa00 !important; font-weight: bold; }
-    </style>
-    """
-    components.html(custom_css + exp.as_html(), height=600, scrolling=True)
-
-elif analyze_btn and not review:
-    st.warning("Please enter a review first!")
-# --- ENHANCED PREDICTION LOGIC ---
+# --- THE LOGIC BLOCK (Fixed Indentation) ---
+if analyze_btn:
+    if review:
+        # Processing starts exactly 8 spaces in (under the 'if review')
         cleaned = clean_text(review)
         prediction = model.predict(vectorizer.transform([cleaned]))[0]
         probs = c.predict_proba([review])[0]
         class_map = dict(zip(model.classes_, probs))
 
-        # 1. Custom Rule: Check for excessive repetition (Bot behavior)
+        # HYBRID LOGIC: Check for repetition (Lexical Diversity)
         words = cleaned.split()
         unique_ratio = len(set(words)) / len(words) if len(words) > 0 else 1
         
-        # 2. Custom Rule: Marketing "Spam" words
-        spam_keywords = ['amazing', 'product', 'buy now', 'best quality', 'results']
-        spam_count = sum(1 for word in spam_keywords if word in cleaned)
-
-        # FINAL VERDICT (Hybrid Logic)
-        # If model says CG OR if it's very repetitive (ratio < 0.5) OR high spam count
-        is_fake = (prediction == "CG") or (unique_ratio < 0.5 and len(words) > 10) or (spam_count > 3)
+        # Check if it should be forced to FAKE
+        is_fake = (prediction == "CG") or (unique_ratio < 0.5 and len(words) > 10)
 
         st.divider()
         if is_fake:
-            # Calculate a "Weighted" confidence for the UI
-            fake_conf = class_map.get('CG', 0.5) * 100
-            if unique_ratio < 0.5: fake_conf = max(fake_conf, 85.0) # Boost if repetitive
-            
-            st.error(f"### 🚩 VERDICT: FAKE")
-            st.write(f"The system detected bot-like patterns (Repetition: {unique_ratio:.2f}). Confidence: {fake_conf:.1f}%")
+            st.error("### 🚩 VERDICT: FAKE")
+            st.write(f"Reasoning: High repetition or bot-like patterns detected.")
         else:
-            real_conf = class_map.get('OR', 0.5) * 100
-            st.success(f"### ✅ VERDICT: REAL")
-            st.write(f"The review appears natural. AI Confidence: {real_conf:.1f}%")
+            st.success("### ✅ VERDICT: REAL")
+            st.write(f"Reasoning: The text structure appears naturally human.")
+
+        # LIME Section
+        st.subheader("Visual Explanation")
+        explainer = LimeTextExplainer(class_names=model.classes_)
+        exp = explainer.explain_instance(review, c.predict_proba, num_features=10)
+        
+        custom_css = "<style>* { color: white !important; } text { fill: white !important; }</style>"
+        components.html(custom_css + exp.as_html(), height=600, scrolling=True)
+    else:
+        st.warning("Please enter a review first!")
