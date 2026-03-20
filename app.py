@@ -46,8 +46,8 @@ if st.button("Analyze Review"):
                 num_features=10
             )
             
-            # Render the LIME HTML in Streamlit
+        # Render the LIME HTML in Streamlit
             components.html(exp.as_html(), height=800, scrolling=True)
     else:
-        st.warning("Please enter some text first.")upper()}")
+        st.warning("Please enter some text first.")
     
