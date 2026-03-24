@@ -59,19 +59,10 @@ if analyze_btn:
             avg_word_length = sum(len(word) for word in words) / len(words)
 
             # 3. Final Verdict Decision
-            # 1. Get the probability of the 'Fake' class (index 0)
-            fake_probability = probs 
-
-# 2. Updated Verdict Decision
-# Now, the AI must be at least 65% sure it is fake to trigger, 
-# UNLESS the Heuristics (Uniqueness/Word Length) are extremely bad.
-            is_fake = (fake_probability > 0.65) or \
-               (unique_ratio < 0.60) or \
-               (avg_word_length > 7.0)
-            # is_fake = (prediction_index == 0) or \
-            #           (unique_ratio < 0.65) or \
-            #           (generic_ratio > 0.35) or \
-            #           (avg_word_length > 6.8)
+            is_fake = (prediction_index == 0) or \
+                      (unique_ratio < 0.65) or \
+                      (generic_ratio > 0.35) or \
+                      (avg_word_length > 6.8)
 
             st.divider()
 
