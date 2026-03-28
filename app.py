@@ -67,10 +67,23 @@ def run_analysis(review_text):
         st.info(f"**Reason:** Natural Language | AI Confidence: {probs[1]*100:.1f}%")
 
     #  VISUAL EXPLANATION (LIME) 
+   #  VISUAL EXPLANATION (LIME) 
+    st.subheader("🔍 Visual Explanation")
     with st.spinner("Generating feature importance..."):
         explainer = LimeTextExplainer(class_names=['Fake (CG)', 'Real (OR)'])
         exp = explainer.explain_instance(cleaned, c.predict_proba, num_features=10)
+        lime_html = exp.as_html() # <--- This was the missing line causing the NameError!
         
+        # DARK THEME VISIBILITY FIX
+        improved_css = """
+        <style>
+            body, .lime { background-color: #0e1117 !important; color: #ffffff !important; }
+            div, p, b { color: #ffffff !important; } 
+            text { fill: #ffffff !important; font-size: 12px !important; }
+            .lime.label { color: #ffaa00 !important; font-weight: bold !important; }
+        </style>
+        """
+        components.html(improved_css + lime_html, height=500, scrolling=True)
         # DARK THEME VISIBILITY FIX
         improved_css = """
         <style>
