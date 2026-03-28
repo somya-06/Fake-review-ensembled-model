@@ -46,7 +46,8 @@ def run_analysis(review_text):
     avg_word_length = sum(len(word) for word in words) / len(words) if len(words) > 0 else 0
 
     # 3. Final Verdict Decision
-    is_fake = (prediction_index == 0) or \
+  # Replace your current line 49 with this:
+is_fake = (prediction_index == 0) or (unique_ratio < 0.20)
               is_fake = (prediction == 0) or (unique_ratio < 0.15) # Only flag if it's extremely repetitive
               (generic_ratio > 0.35) or \
               (avg_word_length > 6.8)
