@@ -61,13 +61,7 @@ def run_analysis(review_text):
         else:
             st.write("🤖 **AI Verdict:** This text patterns match Original (OR) reviews.")
 
-    # DISPLAY VERDICT 
-    if is_fake:
-        st.error("### 🚩 VERDICT: FAKE")
-        if prediction_index == 1 and unique_ratio < 0.15:
-            st.warning("⚠️ **Heuristic Override:** The AI thought this was real, but the text is too repetitive (Low Uniqueness).")
-    else:
-        st.success("### ✅ VERDICT: REAL")
+    
 
     # 1. Get raw probabilities
     probs = c.predict_proba([cleaned])[0]
