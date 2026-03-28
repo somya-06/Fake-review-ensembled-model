@@ -1,3 +1,4 @@
+from scraper_test import scrape_amazon_reviews
 import streamlit as st
 import joblib
 import numpy as np
