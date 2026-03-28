@@ -47,7 +47,7 @@ def run_analysis(review_text):
 
     # 3. Final Verdict Decision
     is_fake = (prediction_index == 0) or \
-              (unique_ratio < 0.65) or \
+              is_fake = (prediction == 0) or (unique_ratio < 0.15) # Only flag if it's extremely repetitive
               (generic_ratio > 0.35) or \
               (avg_word_length > 6.8)
 
