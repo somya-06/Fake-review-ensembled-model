@@ -31,7 +31,7 @@ def run_analysis(review_text, key_suffix=""):
         st.warning("Please enter a valid review.")
         return
 
-    # Prediction & Confidence
+    # Prediction
     probs = c.predict_proba([cleaned])[0]
     prediction_index = np.argmax(probs)
     ai_confidence = probs[1] * 100
@@ -41,7 +41,6 @@ def run_analysis(review_text, key_suffix=""):
     avg_word_length = sum(len(word) for word in words) / len(words) if len(words) > 0 else 0
     is_fake = (prediction_index == 0) or (unique_ratio < 0.15) or (avg_word_length > 10)
 
-    # UI Result Layout
     col_v, col_t = st.columns([1, 2])
     with col_v:
         if is_fake:
@@ -55,13 +54,17 @@ def run_analysis(review_text, key_suffix=""):
             st.write(f"- **Uniqueness Score:** {unique_ratio:.2f}")
             st.write(f"- **Avg Word Length:** {avg_word_length:.1f}")
 
-    # LIME Explanation
+    # LIME Explanation (Optimized for multiple instances)
     st.write("**🔍 Feature Importance (LIME)**")
     explainer = LimeTextExplainer(class_names=['Fake', 'Real'])
-    exp = explainer.explain_instance(cleaned, c.predict_proba, num_features=8)
-    components.html(exp.as_html(), height=350, scrolling=False)
+    # We use fewer samples for batch analysis to improve speed
+    num_samples = 500 if "manual" in key_suffix else 200
+    exp = explainer.explain_instance(cleaned, c.predict_proba, num_features=8, num_samples=num_samples)
+    
+    # Unique height and key prevent overlapping
+    components.html(exp.as_html(), height=400, scrolling=False)
 
-# --- REUSABLE REPORT GENERATOR FOR SCRAPERS ---
+# --- REUSABLE REPORT GENERATOR ---
 def generate_scraper_report(reviews, site_name):
     if not reviews:
         st.error(f"Could not extract reviews from {site_name}. Check the URL.")
@@ -70,6 +73,7 @@ def generate_scraper_report(reviews, site_name):
     real_count = 0
     total_reviews = len(reviews)
     
+    # Process batch for the main dashboard
     for r_text in reviews:
         cleaned = clean_text(r_text)
         if np.argmax(c.predict_proba([cleaned])[0]) == 1:
@@ -92,7 +96,6 @@ def generate_scraper_report(reviews, site_name):
         m2.metric("Real Found", real_count)
         m3.metric("Fakes Flagged", total_reviews - real_count)
 
-    # Overall Verdict
     if ai_star_rating >= 4.0:
         st.success("### ✅ VERDICT: HIGH INTEGRITY PRODUCT")
     elif ai_star_rating >= 2.5:
@@ -103,14 +106,14 @@ def generate_scraper_report(reviews, site_name):
     st.divider()
     st.subheader("📑 Review-by-Review Breakdown")
     for i, r_text in enumerate(reviews):
+        # We ensure each review gets a distinct expander and unique key for LIME
         with st.expander(f"Review {i+1} Details", expanded=False):
-            st.write(f"**Original Text:** {r_text}")
+            st.info(f"**Review Content:** {r_text[:300]}...")
             run_analysis(r_text, key_suffix=f"{site_name}_{i}")
 
 # --- UI LAYOUT TABS ---
 tab1, tab2, tab3 = st.tabs(["📝 Manual Input", "📦 Amazon Scraper", "🛒 Flipkart Scraper"])
 
-# TAB 1: Manual Check
 with tab1:
     st.subheader("Analyze a Single Review")
     manual_review = st.text_area("Paste review text:", height=150, key="manual_area")
@@ -118,7 +121,6 @@ with tab1:
         if manual_review:
             run_analysis(manual_review, key_suffix="manual")
 
-# TAB 2: Amazon Scraper
 with tab2:
     st.subheader("📦 Amazon Product Analysis")
     amz_url = st.text_input("Paste Amazon URL:", key="amz_url_input")
@@ -128,7 +130,6 @@ with tab2:
                 res = scrape_amazon_reviews(amz_url)
                 generate_scraper_report(res, "Amazon")
 
-# TAB 3: Flipkart Scraper
 with tab3:
     st.subheader("🛒 Flipkart Product Analysis")
     flp_url = st.text_input("Paste Flipkart URL:", key="flp_url_input")
