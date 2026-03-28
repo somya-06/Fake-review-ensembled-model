@@ -1,4 +1,5 @@
 import re
+<<<<<<< HEAD
 import nltk
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
@@ -16,3 +17,22 @@ def clean_text(text):
     
     words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
     return ' '.join(words)
+=======
+
+def clean_text(text):
+    # 1. Handle non-string inputs
+    if not isinstance(text, str):
+        return ""
+    
+    # 2. Convert to lowercase
+    text = text.lower()
+    
+    # 3. Remove special characters but KEEP numbers (they matter for ratings/prices!)
+    # We remove punctuation but keep the words intact
+    text = re.sub(r'[^a-z0-9\s]', '', text)
+    
+    # 4. Remove extra whitespace
+    text = " ".join(text.split())
+    
+    return text
+>>>>>>> teammate/main
