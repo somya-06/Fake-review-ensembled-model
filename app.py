@@ -12,6 +12,7 @@ st.set_page_config(page_title="AI Review Validator", layout="wide")
 # 1. Load Model
 @st.cache_resource
 def load_model():
+    # Ensure this matches your filename on GitHub exactly
     return joblib.load("model/fake_review_model.pkl")
 
 try:
@@ -23,11 +24,6 @@ except Exception as e:
 st.title("🛡️ AI Review Integrity System")
 
 # --- REUSABLE ANALYSIS FUNCTION ---
-def run_analysis(review_text):
-    cleaned = clean_text(review_text)
-    words = cleaned.split()
-    
- # --- REUSABLE ANALYSIS FUNCTION WITH DEBUG ---
 def run_analysis(review_text):
     cleaned = clean_text(review_text)
     words = cleaned.split()
@@ -45,9 +41,8 @@ def run_analysis(review_text):
     unique_ratio = len(set(words)) / len(words)
     avg_word_length = sum(len(word) for word in words) / len(words) if len(words) > 0 else 0
 
-    # 3. Final Verdict Decision
-    # We only flag if the AI says it's fake OR if it's extremely repetitive
-    is_fake = (prediction_index == 0) or (unique_ratio < 0.15)
+    # 3. Final Verdict Decision (AI + Heuristics)
+    is_fake = (prediction_index == 0) or (unique_ratio < 0.15) or (avg_word_length > 10)
 
     # --- DEBUG DASHBOARD ---
     with st.expander("📊 Technical Analysis (Why is this Fake/Real?)"):
@@ -57,42 +52,24 @@ def run_analysis(review_text):
         col3.metric("Avg Word Length", f"{avg_word_length:.1f}")
         
         if prediction_index == 0:
-            st.write("🤖 **AI Verdict:** This text patterns match Computer-Generated (CG) reviews.")
+            st.write("🤖 **AI Verdict:** This text matches patterns of Computer-Generated (CG) reviews.")
         else:
-            st.write("🤖 **AI Verdict:** This text patterns match Original (OR) reviews.")
-
-    
-
-    # 1. Get raw probabilities
-    probs = c.predict_proba([cleaned])[0]
-    prediction_index = np.argmax(probs)
-    
-    # 2. Hybrid Logic Calculations
-    unique_ratio = len(set(words)) / len(words)
-    avg_word_length = sum(len(word) for word in words) / len(words) if len(words) > 0 else 0
-
-    # 3. Final Verdict Decision
-    is_fake = (prediction_index == 0) or (unique_ratio < 0.20) or (avg_word_length > 10)
+            st.write("🤖 **AI Verdict:** This text matches patterns of Original (OR) reviews.")
 
     # DISPLAY VERDICT 
     if is_fake:
         st.error("### 🚩 VERDICT: FAKE")
-        st.info(f"**Reason:** Pattern Mismatch | Uniqueness: {unique_ratio:.2f} | Avg Word Len: {avg_word_length:.1f}")
-        
         if prediction_index == 1:
             st.warning("⚠️ **Heuristic Override Applied**")
-            st.write("The AI leaned toward 'Real', but safety checks flagged it:")
-            if unique_ratio < 0.20: st.write(f"- 🚩 **Low Diversity:** ({unique_ratio:.2f})")
-            if avg_word_length > 10: st.write(f"- 🚩 **Unnatural Word Length:** ({avg_word_length:.1f})")
+            st.write("The AI leaned toward 'Real', but safety checks flagged it for repetition or length.")
     else:
         st.success("### ✅ VERDICT: REAL")
-        st.info(f"**Reason:** Natural Language | AI Confidence: {probs[1]*100:.1f}%")
+        st.info(f"**Reason:** Natural Language | AI Confidence: {ai_confidence:.1f}%")
 
     # VISUAL EXPLANATION (LIME) 
     st.subheader("🔍 Visual Explanation")
     with st.spinner("Generating feature importance..."):
         explainer = LimeTextExplainer(class_names=['Fake (CG)', 'Real (OR)'])
-        # FIXED LINE BELOW
         exp = explainer.explain_instance(cleaned, c.predict_proba, num_features=10)
         lime_html = exp.as_html()
         
@@ -104,11 +81,12 @@ def run_analysis(review_text):
             .lime.label { color: #ffaa00 !important; font-weight: bold !important; }
         </style>
         """
-        components.html(improved_css + lime_html, height=500, scrolling=True)
+        components.html(improved_css + lime_html, height=450, scrolling=True)
 
 # --- UI LAYOUT TABS ---
 tab1, tab2 = st.tabs(["📝 Manual Input", "🌐 Live Amazon Scraper"])
 
+# TAB 1: Manual Check
 with tab1:
     st.subheader("Analyze a Single Review")
     if 'input_text' not in st.session_state:
@@ -117,7 +95,7 @@ with tab1:
     def clear_text():
         st.session_state['input_text'] = ""
 
-    manual_review = st.text_area("Paste review here:", value=st.session_state['input_text'], height=150, key="review_area")
+    manual_review = st.text_area("Paste review here:", value=st.session_state['input_text'], height=150, key="manual_area")
 
     col1, col2 = st.columns([1, 5])
     with col1:
@@ -127,31 +105,13 @@ with tab1:
             else:
                 st.warning("Please enter a review first!")
     with col2:
-        st.button("Clear Text", on_click=clear_text)
+        st.button("Clear Text", on_click=clear_text, key="clear_btn")
 
-# --- TAB 2: Aggregated Analysis ---
+# TAB 2: Live Scraper + 5-Star Rating
 with tab2:
     st.subheader("🌐 Live Amazon Product Analysis")
-    product_url = st.text_input("Paste an Amazon Product URL here:")
-
-    if st.button("Extract & Analyze Reviews", key="url_btn"):
-        if product_url:
-            with st.spinner("Scraping and analyzing all reviews..."):
-                reviews = scrape_amazon_reviews(product_url)
-            
-            if not reviews:
-                st.error("Could not extract reviews.")
-            else:
-                # 1. Initialize Counters
-                total_reviews = len(reviews)
-                real_count = 0
-                fake_count = 0
-                
-                # 2. Run batch analysis (Silent)
-                # --- TAB 2: Aggregated Analysis with 5-Star Rating ---
-with tab2:
-    st.subheader("🌐 Live Amazon Product Analysis")
-    product_url = st.text_input("Paste an Amazon Product URL here:")
+    # Added unique key to fix DuplicateElementId
+    product_url = st.text_input("Paste an Amazon Product URL here:", key="scraper_url_input")
 
     if st.button("Extract & Analyze Reviews", key="url_btn"):
         if product_url:
@@ -159,12 +119,12 @@ with tab2:
                 reviews = scrape_amazon_reviews(product_url)
             
             if not reviews:
-                st.error("Could not extract reviews.")
+                st.error("Could not extract reviews. Please try a full URL.")
             else:
                 real_count = 0
                 total_reviews = len(reviews)
                 
-                # Run the model on every review
+                # Analyze all scraped reviews
                 for review_text in reviews:
                     cleaned = clean_text(review_text)
                     probs = c.predict_proba([cleaned])[0]
@@ -172,35 +132,42 @@ with tab2:
                         real_count += 1
                 
                 # --- CALCULATE OVERALL AI RATING ---
-                # Logic: Percentage of Real Reviews converted to 5-star scale
                 real_ratio = real_count / total_reviews
                 ai_star_rating = real_ratio * 5
                 
                 st.divider()
                 st.header("🛡️ AI Product Integrity Report")
                 
-                # Display the Big Star Rating
-                col1, col2 = st.columns([1, 2])
-                with col1:
+                col_stars, col_metrics = st.columns([1, 2])
+                with col_stars:
                     st.metric("Overall AI Rating", f"{ai_star_rating:.1f} / 5")
-                with col2:
-                    # Visual Star Display
-                    stars = "⭐" * int(round(ai_star_rating))
-                    st.subheader(f"Rating: {stars}")
+                    stars_visual = "⭐" * int(round(ai_star_rating))
+                    if not stars_visual: stars_visual = "🌑"
+                    st.subheader(f"{stars_visual}")
 
-                # --- THE "BUY" VERDICT BASED ON STARS ---
+                with col_metrics:
+                    # Breakdown
+                    c1, c2, c3 = st.columns(3)
+                    c1.metric("Total Reviews", total_reviews)
+                    c2.metric("Real Found", real_count)
+                    c3.metric("Fakes Flagged", total_reviews - real_count)
+
+                # --- THE VERDICT ---
                 if ai_star_rating >= 4.0:
                     st.success("### ✅ VERDICT: HIGH INTEGRITY")
-                    st.write("Most reviews are genuine. This is a safe choice.")
+                    st.write("The vast majority of reviews are genuine.")
                 elif 2.5 <= ai_star_rating < 4.0:
                     st.warning("### ⚠️ VERDICT: MIXED SIGNALS")
-                    st.write("A significant number of reviews look generated. Read carefully.")
+                    st.write("Caution: Some reviews look manipulated or generated.")
                 else:
                     st.error("### 🚫 VERDICT: UNTRUSTWORTHY")
-                    st.write("Low integrity score. Most reviews appear to be AI-generated/Fake.")
+                    st.write("Heavy presence of suspected fake reviews.")
 
-                # Show the breakdown cards
-                c1, c2, c3 = st.columns(3)
-                c1.metric("Total Analyzed", total_reviews)
-                c2.metric("Real Found", real_count)
-                c3.metric("Fakes Flagged", total_reviews - real_count)
+                st.divider()
+                st.subheader("📑 Individual Review Details")
+                for i, r_text in enumerate(reviews):
+                    with st.expander(f"Review {i+1} Details"):
+                        st.write(r_text)
+                        run_analysis(r_text)
+        else:
+            st.warning("Please enter a URL first.")
