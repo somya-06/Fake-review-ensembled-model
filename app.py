@@ -1,5 +1,12 @@
-from scraper_test import scrape_amazon_reviews
+import asyncio
+import sys
+
+# FIX: Force Windows to use the correct Asyncio loop so Playwright can open the browser
+if sys.platform == "win32":
+    asyncio.set_event_loop_policy(asyncio.WindowsProactorEventLoopPolicy())
+
 import streamlit as st
+from scraper_test import scrape_amazon_reviews
 import joblib
 import numpy as np
 from src.preprocess import clean_text
